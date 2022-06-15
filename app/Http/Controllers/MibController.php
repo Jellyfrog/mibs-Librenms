@@ -79,7 +79,7 @@ class MibController extends Controller
             }
         }
 
-        ksort($data, SORT_STRING);
+        ksort($data, SORT_NATURAL);
 
         return view('mib', compact('mib', 'indent' ,'data', 'moduleidentity', 'imports'));
     }

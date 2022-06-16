@@ -81,16 +81,18 @@ class MibController extends Controller
 
         ksort($data, SORT_NATURAL);
 
-        return view('mib', compact('mib', 'indent' ,'data', 'moduleidentity', 'imports'));
+        $a =view('mib', compact('mib', 'indent' ,'data', 'moduleidentity', 'imports'))->render();
+        file_put_contents('/tmp/a.txt', $a);
+        //return view('mib', compact('mib', 'indent' ,'data', 'moduleidentity', 'imports'));
     }
 
 
     private static function isCollapsable($data): bool {
-/*
+
         if(in_array($data->class, ["objectidentity"])) {
             return true;
         }
-*/
+
         if(!isset($data->nodetype)) {
             return false;
         }

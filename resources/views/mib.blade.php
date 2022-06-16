@@ -1,3 +1,15 @@
+ml-1
+ml-2
+ml-3
+ml-4
+ml-5
+ml-6
+ml-7
+ml-8
+ml-9
+
+
+
 <x-app>
     <x-slot name="title">{{ $mib }}</x-slot>
     <x-slot name="header">
@@ -44,13 +56,13 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($imports as $mib => $objects)
+                            @foreach($imports as $import => $objects)
                             <tr class="even:bg-gray-50">
                                 <td class="px-6 py-1">
                                     {{ implode(", ", $objects) }}
                                 </td>
                                 <td class="px-6 py-1 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ $mib }}</div>
+                                    <div class="text-sm text-gray-900">{{ $import }}</div>
                                 </td>
                             </tr>
                             @endforeach
@@ -81,32 +93,29 @@
                 </tr>
             </thead>
 
-            @foreach($data as $oid => $data)
+            @foreach($data as $oid => $d)
 
                 @php
                     $level_current = substr_count($oid, '.') -6;
                 @endphp
 
 
-                @if(isset($level_parents) && $level_current <= end($level_parents))
+                @if(isset($d->collapsable))
+
+                    @if(isset($level_parents) && !empty($level_parents))
+<!-- x-oid="{{array_pop($level_parents)}}" -->
+            </tbody>
+                    @endif
+
                     @php
-                        array_pop($level_parents);
+                        $level_parents[] = $oid;
                     @endphp
 
-                    </tbody>
+            <tbody x-oid="{{$oid}}" x-data="{open: true}">
                 @endif
 
-                @if(isset($data->collapsable))
-                    @php
-                        $level_parents[] = $level_current;
-                    @endphp
-
-                    <tbody x-data="{open: true}">
-                @endif
-
-                <tr id="{{ $oid }}"
-                    class="even:bg-gray-100 hover:bg-gray-200 target:bg-pink-100 @isset($data->collapsable) cursor-pointer @endisset"
-                    @isset($data->collapsable)
+                <tr id="{{ $oid }}" class="even:bg-gray-100 hover:bg-gray-200 target:bg-pink-100 @isset($d->collapsable) cursor-pointer @endisset"
+                    @isset($d->collapsable)
                         @click="open = ! open"
                     @else
                         x-show="open"
@@ -114,45 +123,59 @@
                 >
 
                     <td class="apl-[{{$level_current*2}}px]">
-                        {!! str_repeat("&nbsp;&nbsp;&nbsp;&nbsp;", $level_current) !!}
 
-                        <img src="{{ $data->nodetype ?? $data->class ?? 'unknown' }}.svg" class="w-[24px] h-[24px] inline" title="{{ $data->nodetype ?? $data->class ?? null }}" />
 
-                        {{ $data->name }}
+                        <img src="{{ $d->nodetype ?? $d->class ?? 'unknown' }}.svg" class="w-[24px] h-[24px] inline ml-{{$level_current*3}}" title="{{ $d->nodetype ?? $d->class ?? null }}" />
 
-                        @isset($data->description)
-                            <img src="info.svg" class="w-[16px] h-[16px] inline" title="{{ str_replace('"', '&quote;', $data->description) }}" />
+                        {{ $d->name }}
+
+                        @isset($d->description)
+                            <img src="info.svg" class="w-[16px] h-[16px] inline" title="{{ str_replace('"', '&quote;', $d->description) }}" />
                         @endisset
                     </td>
-                    {{--<td class="px-6 py-1 border-r-2 border-black">{{ isset($data->collapsable) ? 'X' : null }}</td>--}}
-                    {{--<td class="">{{ $data->class }}</td>--}}
-                    {{--<td>{{ $data->nodetype ?? null }}</td>--}}
-                    <td>{{ $data->syntax->type ?? null }}</td>
+                    {{--<td class="px-6 py-1 border-r-2 border-black">{{ isset($d->collapsable) ? 'X' : null }}</td>--}}
+                    {{--<td class="">{{ $d->class }}</td>--}}
+                    {{--<td>{{ $d->nodetype ?? null }}</td>--}}
+                    <td>{{ $d->syntax->type ?? null }}</td>
                     <td>
-                        @isset($data->syntax->constraints->size[0]->min)
-                            {{ $data->syntax->constraints->size[0]->min }}
+                        @isset($d->syntax->constraints->size[0]->min)
+                            {{ $d->syntax->constraints->size[0]->min }}
                             -
                         @endisset
-                        {{ $data->syntax->constraints->size[0]->max ?? null }}
+                        {{ $d->syntax->constraints->size[0]->max ?? null }}
 
-                        @isset($data->syntax->constraints->enumeration)
+                        @isset($d->syntax->constraints->enumeration)
                             <ul>
-                            @foreach($data->syntax->constraints->enumeration as $value => $key)
+                            @foreach($d->syntax->constraints->enumeration as $value => $key)
                                 <li>{{ $key }} = {{ $value }}</li>
                             @endforeach
                             </ul>
                         @endisset
                     </td>
-                    <td>{{ $data->maxaccess ?? null }}</td>
+                    <td>{{ $d->maxaccess ?? null }}</td>
                     <td>
-                        @isset($data->statusIcon)
-                            <img src="{{ $data->statusIcon }}" class="w-[16px] h-[16px] inline" title="{{ $data->status }}" />
+                        @isset($d->statusIcon)
+                            <img src="{{ $d->statusIcon }}" class="w-[16px] h-[16px] inline" title="{{ $d->status }}" />
                         @endisset
                     </td>
                     <td><a href="#{{ $oid }}">{{ $oid }}</a></td>
                 </tr>
 
+
+                @if($loop->last && isset($level_parents) && !empty($level_parents))
+<!-- x-oid="{{array_pop($level_parents)}}" -->
+            </tbody>
+                @endif
+
+
             @endforeach
         </table>
     </div>
 </x-app>
+@dump($level_parents)
+
+@dump("mib",$mib)
+@dump("indent", $indent)
+@dump("data", $data)
+@dump("moduleidentity", $moduleidentity)
+@dump("imports", $imports)

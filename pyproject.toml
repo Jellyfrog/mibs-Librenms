@@ -1,0 +1,26 @@
+[project]
+name = "mibsite"
+version = "0.1.0"
+description = "Static MIB browser generator for LibreNMS"
+requires-python = ">=3.12"
+dependencies = [
+    "pysmi>=2.0,<3",
+    "jinja2>=3.1",
+    "minify-html>=0.15",
+]
+
+[project.scripts]
+mibsite = "mibsite.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mibsite"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,140 @@
+from mibsite.model import Module, Obj
+from conftest import canon
+from mibsite.render import SiteConfig, render_site
+from mibsite.symbols import SymbolTable
+
+
+def test_render_site(tmp_path):
+    good = Module("GOOD-MIB", "_root", "GOOD-MIB", "pysmi", imports={"SNMPv2-SMI": ["enterprises"]},
+                  identity={"organization": "Example Org", "contact": "noc", "description": "A <test> MIB.",
+                            "last_updated": "202601010000Z", "revisions": [{"date": "2026-01-01 00:00", "description": "Init"}]},
+                  objects=[Obj("goodMIB", "1.3.6.1.4.1.99999", "identity"),
+                           Obj("goodName", "1.3.6.1.4.1.99999.1", "scalar", "DisplayString", "read-only", "current",
+                               description="The name.")])
+    smi = Module("SNMPv2-SMI", "_root", "SNMPv2-SMI", "netsnmp", objects=[Obj("enterprises", "1.3.6.1.4.1", "node")])
+    raw = Module("NOT-A-MIB", "acme", "acme/NOT-A-MIB", "raw", errors=["No ASN.1 module definition"])
+    mods = [good, smi, raw]
+    table = SymbolTable(mods)
+    vendors = {"_root/GOOD-MIB": "Example", "_root/SNMPv2-SMI": "Standards (IETF)", "acme/NOT-A-MIB": "Acme"}
+    examples = {"_root/GOOD-MIB": {"goodName": [{"v": "w", "t": "OCTET STRING", "i": "0", "f": "acme"}]}}
+    cfg = SiteConfig("https://mibs.example.org", "abc1234def", "2026-11-14")
+    pages = render_site(tmp_path, mods, table, vendors, examples, cfg, jobs=1)
+
+    page = canon((tmp_path / "mib/GOOD-MIB/index.html").read_text())
+    assert "<title>GOOD-MIB" in page
+    assert 'href="https://mibs.example.org/mib/GOOD-MIB/" rel="canonical"' in page
+    assert 'id="goodName"' in page and "1.3.6.1.4.1.99999.1" in page
+    assert '<table class="tt">' in page
+    assert "<th>Example" in page and '<td class="exv"><code title="OCTET STRING · instance .0 · acme">w' in page  # first example inline
+    assert 'data-d="0" id="goodMIB"' in page and 'data-d="1" id="goodName"' in page
+    assert '<tr class="r br" data-d="0" id="goodMIB">' in page
+    assert page.count('<tr class="dr" hidden>') == 1  # only goodName has details; goodMIB has none
+    assert page.count("Example values from LibreNMS test devices") == 1  # table only for objects with examples
+    assert 'href="https://github.com/librenms/librenms/blob/abc1234def/tests/snmpsim/acme.snmprec"' in page
+    assert "A &lt;test&gt; MIB." in page
+    assert 'href="/mib/SNMPv2-SMI/"' in page
+    assert '"@type":"BreadcrumbList"' in page.replace(" ", "")
+    assert "github.com/librenms/librenms/blob/abc1234def/mibs/GOOD-MIB" in page
+    raw_page = canon((tmp_path / "mib/acme/NOT-A-MIB/index.html").read_text())
+    assert "No ASN.1 module definition" not in raw_page  # parse status is not shown to users
+    assert "cannot show an OID tree" in raw_page
+    assert "Show full MIB" in page and "Fully parsed" not in page
+    assert "Statistics" in page
+    letters = canon((tmp_path / "mibs/index.html").read_text())
+    assert 'id="letter-G"' in letters and "GOOD-MIB" in letters
+    vendors_page = canon((tmp_path / "vendors/index.html").read_text())
+    assert "Example" in vendors_page
+    assert 'id="letter-E"' in vendors_page and 'id="letter-S"' in vendors_page
+    assert vendors_page.index('id="letter-A"') < vendors_page.index('id="letter-E"')
+    assert (tmp_path / "vendors/example/index.html").exists()
+    assert "https://mibs.example.org/mib/GOOD-MIB/" in (tmp_path / "sitemap.xml").read_text()
+    assert "Sitemap: https://mibs.example.org/sitemap.xml" in (tmp_path / "robots.txt").read_text()
+    assert (tmp_path / "CNAME").read_text().strip() == "mibs.example.org"
+    assert (tmp_path / "assets/style.css").exists() and (tmp_path / "404.html").exists()
+    assert "/mib/GOOD-MIB/" in pages
+
+
+def test_render_under_subpath(tmp_path):
+    import re
+    good = Module("GOOD-MIB", "_root", "GOOD-MIB", "pysmi", imports={"SNMPv2-SMI": ["enterprises"]},
+                  objects=[Obj("goodMIB", "1.3.6.1.4.1.99999", "identity")])
+    smi = Module("SNMPv2-SMI", "_root", "SNMPv2-SMI", "netsnmp", objects=[Obj("enterprises", "1.3.6.1.4.1", "node")])
+    mods = [good, smi]
+    cfg = SiteConfig("https://user.github.io/mibs.example.org", "abc", "2026-11-14")
+    render_site(tmp_path, mods, SymbolTable(mods), {}, {}, cfg, jobs=1)
+    for f in tmp_path.rglob("*.html"):
+        bad = [u for u in re.findall(r'(?:href|src|action)="(/[^"]*)"', canon(f.read_text()))
+               if not u.startswith("/mibs.example.org/")]
+        assert bad == [], f"{f}: {bad}"
+    page = canon((tmp_path / "mib/GOOD-MIB/index.html").read_text())
+    assert 'href="/mibs.example.org/mib/SNMPv2-SMI/"' in page
+    assert 'data-root="/mibs.example.org"' in page
+    assert 'href="https://user.github.io/mibs.example.org/mib/GOOD-MIB/" rel="canonical"' in page
+    assert not (tmp_path / "CNAME").exists()
+
+
+def test_huge_mib_gets_page_without_tree(tmp_path, monkeypatch):
+    import mibsite.model as model
+    monkeypatch.setattr(model, "MAX_PAGE_OBJECTS", 1)
+    big = Module("BIG-MIB", "acme", "acme/BIG-MIB", "regex",
+                 objects=[Obj("a", "1.3.6.1.4.1.9", "node"), Obj("b", "1.3.6.1.4.1.9.1", "scalar")])
+    render_site(tmp_path, [big], SymbolTable([big]), {}, {}, SiteConfig("https://x.test", "abc", "2026-11-14"), jobs=1)
+    page = canon((tmp_path / "mib/acme/BIG-MIB/index.html").read_text())
+    assert "does not show the OID tree" in page and '<table class="tt">' not in page
+
+
+def test_vendor_names_differing_in_case_share_one_page(tmp_path):
+    a = Module("A-MIB", "nokia", "nokia/A-MIB", "pysmi")
+    b = Module("B-MIB", "nokia", "nokia/B-MIB", "pysmi")
+    vendors = {a.id: "Nokia (formerly 'Alcatel-Lucent')", b.id: "Nokia (Formerly 'Alcatel-Lucent')"}
+    render_site(tmp_path, [a, b], SymbolTable([a, b]), vendors, {}, SiteConfig("https://x.test", "abc", "2026-11-14"), jobs=1)
+    page = canon((tmp_path / "vendors/nokia-formerly-alcatel-lucent/index.html").read_text())
+    assert "A-MIB" in page and "B-MIB" in page
+
+
+def test_enum_label():
+    from mibsite.render import enum_label
+    assert enum_label("1", {"up": 1, "down": 2}) == "up(1)"
+    assert enum_label("7", {"up": 1}) == "7" and enum_label("x", None) == "x"
+
+
+def test_syntax_hint():
+    from mibsite.model import TextualConvention
+    from mibsite.render import syntax_hint
+    tcs = {"InterfaceIndex": TextualConvention("InterfaceIndex", "Integer32 (1..2147483647)", display_hint="d")}
+    assert syntax_hint(Obj("ifIndex", "1.1", "column", "InterfaceIndex"), tcs) == "InterfaceIndex: Integer32 (1..2147483647), display hint d"
+    assert syntax_hint(Obj("st", "1.2", "column", "INTEGER", enums={"down": 2, "up": 1}), {}) == "up(1), down(2)"
+    many = syntax_hint(Obj("t", "1.3", "column", "INTEGER", enums={f"v{i}": i for i in range(100)}), {})
+    assert many.endswith("… 60 more")
+    assert syntax_hint(Obj("n", "1.4", "scalar", "Integer32"), {}) == ""
+
+
+def test_top_level_mibs_leave_a_redirect_at_the_old_url(tmp_path):
+    m = Module("TOP-MIB", "_root", "TOP-MIB", "pysmi", objects=[Obj("t", "1.3.6.1.4.1.9", "node")])
+    render_site(tmp_path, [m], SymbolTable([m]), {}, {}, SiteConfig("https://x.test/p", "abc", "d"), jobs=1)
+    assert (tmp_path / "mib/TOP-MIB/index.html").exists()
+    old = (tmp_path / "mib/_root/TOP-MIB/index.html").read_text()
+    assert 'url=/p/mib/TOP-MIB/' in old and 'location.replace("/p/mib/TOP-MIB/" + location.hash)' in old
+
+
+def test_imports_table_and_type_links(tmp_path):
+    from mibsite.model import TextualConvention
+    tc_mib = Module("TC-MIB", "_root", "TC-MIB", "pysmi", objects=[Obj("tcRoot", "1.3.6.1.4.1.5", "node")],
+                    tcs=[TextualConvention("InterfaceIndexOrZero", "Integer32 (0..2147483647)")])
+    user = Module("USER-MIB", "_root", "USER-MIB", "pysmi", imports={"TC-MIB": ["InterfaceIndexOrZero", "nope"]},
+                  objects=[Obj("u", "1.3.6.1.4.1.6", "scalar", "InterfaceIndexOrZero")])
+    mods = [tc_mib, user]
+    render_site(tmp_path, mods, SymbolTable(mods), {}, {}, SiteConfig("https://x.test", "abc", "d"), jobs=1)
+    page = canon((tmp_path / "mib/USER-MIB/index.html").read_text())
+    assert '<a href="/mib/TC-MIB/#InterfaceIndexOrZero">InterfaceIndexOrZero</a>' in page  # imports table + Type column
+    assert page.count('href="/mib/TC-MIB/#InterfaceIndexOrZero"') == 2
+    assert "#nope" not in page  # not defined in TC-MIB: no link
+    tc_page = canon((tmp_path / "mib/TC-MIB/index.html").read_text())
+    assert 'id="InterfaceIndexOrZero"' in tc_page
+
+
+def test_smi_date():
+    from mibsite.render import smi_date
+    assert smi_date("200006140000Z") == ("2000-06-14T00:00Z", "2000-06-14")
+    assert smi_date("9809281000Z") == ("1998-09-28T10:00Z", "1998-09-28")
+    assert smi_date("garbage") is None and smi_date("201313010000Z") is None

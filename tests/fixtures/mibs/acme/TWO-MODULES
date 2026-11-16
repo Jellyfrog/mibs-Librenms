@@ -1,0 +1,11 @@
+-- a file holding two modules
+FIRST-MIB
+    DEFINITIONS ::= BEGIN
+IMPORTS enterprises FROM SNMPv2-SMI;
+firstRoot OBJECT IDENTIFIER ::= { enterprises 99997 }
+END
+
+SECOND-MIB DEFINITIONS ::= BEGIN
+IMPORTS firstRoot FROM FIRST-MIB;
+secondNode OBJECT IDENTIFIER ::= { firstRoot 5 }
+END

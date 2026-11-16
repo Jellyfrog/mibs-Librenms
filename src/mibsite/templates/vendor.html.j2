@@ -1,0 +1,11 @@
+{% extends "base.html.j2" %}
+{% from "_letters.html.j2" import letter_groups %}
+{% block title %}{{ vendor }} SNMP MIBs | LibreNMS MIB Browser{% endblock %}
+{% block description %}{{ mods|length }} SNMP MIBs from {{ vendor }}: OID trees, object types and descriptions.{% endblock %}
+{% block main %}
+<nav class="crumbs" aria-label="Breadcrumb"><a href="{{ root }}/vendors/">Vendors</a> › {{ vendor }}</nav>
+<h1>{{ vendor }}</h1>
+<p class="muted">{{ mods|length }} MIB{{ "s" if mods|length != 1 }}.</p>
+{% macro mib_item(m) %}<li><a href="{{ root }}{{ m.url }}">{{ m.name }}</a></li>{% endmacro %}
+{% if mods|length > 40 %}{{ letter_groups(groups, mib_item) }}{% else %}<section class="card group"><ul class="cols">{% for m in mods %}{{ mib_item(m) }}{% endfor %}</ul></section>{% endif %}
+{% endblock %}

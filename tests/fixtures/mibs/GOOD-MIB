@@ -1,0 +1,82 @@
+GOOD-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, Integer32, Counter32, enterprises
+        FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, DisplayString
+        FROM SNMPv2-TC;
+
+goodMIB MODULE-IDENTITY
+    LAST-UPDATED "202601010000Z"
+    ORGANIZATION "Example Org"
+    CONTACT-INFO "noc@example.com"
+    DESCRIPTION  "A test MIB."
+    REVISION     "202601010000Z"
+    DESCRIPTION  "Initial version."
+    ::= { enterprises 99999 }
+
+GoodState ::= TEXTUAL-CONVENTION
+    STATUS current
+    DESCRIPTION "State of a widget."
+    SYNTAX INTEGER { ok(1), failed(2) }
+
+goodNotifications OBJECT IDENTIFIER ::= { goodMIB 0 }
+goodObjects       OBJECT IDENTIFIER ::= { goodMIB 1 }
+
+goodName OBJECT-TYPE
+    SYNTAX DisplayString (SIZE(0..64))
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION "The widget name. -- not a comment inside a string"
+    ::= { goodObjects 1 }
+
+goodTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF GoodEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION "Widgets."
+    ::= { goodObjects 2 }
+
+goodEntry OBJECT-TYPE
+    SYNTAX GoodEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION "A widget."
+    INDEX { goodIndex }
+    ::= { goodTable 1 }
+
+GoodEntry ::= SEQUENCE {
+    goodIndex  Integer32,
+    goodState  GoodState,
+    goodOctets Counter32
+}
+
+goodIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION "Index."
+    ::= { goodEntry 1 }
+
+goodState OBJECT-TYPE
+    SYNTAX GoodState
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION "State."
+    ::= { goodEntry 2 }
+
+goodOctets OBJECT-TYPE
+    SYNTAX Counter32
+    UNITS "octets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION "Octets."
+    ::= { goodEntry 3 }
+
+goodStateChange NOTIFICATION-TYPE
+    OBJECTS { goodState }
+    STATUS current
+    DESCRIPTION "State changed."
+    ::= { goodNotifications 1 }
+
+END

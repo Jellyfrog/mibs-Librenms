@@ -1,0 +1,60 @@
+{% extends "base.html.j2" %}
+{% from "_tree.html.j2" import node %}
+{% block title %}{{ m.name }} – SNMP MIB ({{ vendor }}) | LibreNMS MIB Browser{% endblock %}
+{% block description %}{{ description }}{% endblock %}
+{% block head %}
+<script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+  {"@type": "ListItem", "position": 1, "name": "MIBs", "item": cfg.base_url ~ "/mibs/"},
+  {"@type": "ListItem", "position": 2, "name": vendor, "item": cfg.base_url ~ "/vendors/" ~ vendor_slug ~ "/"},
+  {"@type": "ListItem", "position": 3, "name": m.name, "item": cfg.base_url ~ path}]}|tojson }}</script>
+<script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "TechArticle", "headline": m.name ~ " SNMP MIB",
+  "description": description, "url": cfg.base_url ~ path, "dateModified": cfg.build_date,
+  "about": (m.identity or {}).get("organization") or vendor}|tojson }}</script>
+{% endblock %}
+{% block main %}
+<nav class="crumbs" aria-label="Breadcrumb"><a href="{{ root }}/mibs/">MIBs</a> › <a href="{{ root }}/vendors/{{ vendor_slug }}/">{{ vendor }}</a> › {{ m.name }}</nav>
+<article class="mib">
+<section class="card summary">
+  <div class="title"><h1>{{ m.name }}</h1><a class="pill" href="{{ root }}/vendors/{{ vendor_slug }}/">{{ vendor }}</a>{% if m.dir == "_external" %}<span class="pill ext">External: LibreNMS does not include this MIB</span>{% endif %}</div>
+  {% if m.identity and m.identity.description %}<pre class="desc lead">{{ m.identity.description }}</pre>{% endif %}
+  <div class="summary-grid"><div>
+  <dl class="meta">
+    {% if m.identity and m.identity.organization %}<dt>Organization</dt><dd>{{ m.identity.organization }}</dd>{% endif %}
+    {% if root_oid %}<dt>Root OID</dt><dd><code>{{ root_oid }}</code></dd>{% endif %}
+    {% if m.identity and m.identity.last_updated %}{% set lu = m.identity.last_updated|smi_date %}<dt>Last updated</dt><dd>{% if lu %}<time datetime="{{ lu[0] }}">{{ lu[1] }}</time>{% else %}{{ m.identity.last_updated }}{% endif %}</dd>{% endif %}
+    <dt>Objects</dt><dd>{{ m.objects|length }}</dd>
+    <dt>Source</dt><dd><a class="srclink" href="{{ source_url }}" rel="nofollow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.4 6.4-1.5 6.4-6.9a5.4 5.4 0 0 0-1.5-3.7 5 5 0 0 0-.1-3.7s-1.2-.4-3.9 1.5a13.4 13.4 0 0 0-7 0C6.3 1.5 5.1 1.9 5.1 1.9a5 5 0 0 0-.1 3.7A5.4 5.4 0 0 0 3.5 9.3c0 5.4 3.3 6.5 6.4 6.9a3.4 3.4 0 0 0-.9 2.6V22"/></svg>Show full MIB</a></dd>
+  </dl>
+  <pre class="cmd"><code>snmptranslate -m {{ m.name }} -Tp</code></pre>
+  {% if root_oid %}<pre class="cmd"><code>snmpwalk -v2c -c &lt;community&gt; -m {{ m.name }} &lt;host&gt; {{ root_oid }}</code></pre>{% endif %}
+  </div>
+  {% if imports %}<div class="imports-box"><h2>Imports</h2><table class="imports"><tbody>{% for i in imports %}<tr><th>{% if i.url %}<a href="{{ root }}{{ i.url }}">{{ i.name }}</a>{% else %}<span class="missing" title="This MIB is not available">{{ i.name }}</span>{% endif %}</th><td>{% for s, href in i.symbols %}{% if href %}<a href="{{ href }}">{{ s }}</a>{% else %}{{ s }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+  </div>
+</section>
+
+{% if tree %}
+<section class="card"><h2>OID tree</h2>
+<div class="tools"><button type="button" data-tree="open">Open all</button><button type="button" data-tree="close">Close all</button><label class="sr" for="tf">Find an object</label><input id="tf" type="search" class="tfilter" placeholder="Find an object" autocomplete="off"></div>
+<noscript><style>.tt .dr[hidden]{display:table-row}</style></noscript>
+<div class="tt-wrap"><table class="tt">
+<thead><tr><th>Name</th><th>OID</th><th>Type</th><th>Access</th><th>Status</th>{% if examples %}<th>Example</th>{% endif %}</tr></thead>
+{% set tree_ctx = {"ex": examples, "hints": hints, "links": type_links, "snmprec": "https://github.com/librenms/librenms/blob/" ~ cfg.librenms_sha ~ "/tests/snmpsim/"} %}<tbody>{% for n in tree %}{{ node(n, tree_ctx) }}{% endfor %}</tbody>
+</table></div>
+</section>
+{% elif too_large %}
+<section class="card"><p>This MIB has {{ "{:,}".format(m.objects|length) }} objects. The site does not show the OID tree for a MIB this large. Use <a href="{{ source_url }}" rel="nofollow">Show full MIB</a> to read the MIB file.</p></section>
+{% else %}
+<section class="card"><p>The site cannot show an OID tree for this MIB. Use <a href="{{ source_url }}" rel="nofollow">Show full MIB</a> to read the MIB file.</p></section>
+{% endif %}
+{% if unresolved %}<section class="card"><h2>Objects without a known OID</h2><ul class="cols">{% for o in unresolved %}<li id="{{ o.name }}"><code>{{ o.name }}</code>{% if o.parent_ref %} ::= { {{ o.parent_ref[0] }} {{ o.parent_ref[1] }} }{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+
+{% if m.tcs %}<section class="card"><h2>Textual conventions</h2><dl class="tcs">{% for t in m.tcs %}<dt id="{{ t.name }}"><code>{{ t.name }}</code>{% if t.syntax %} <span class="syn">{{ t.syntax|type_link(type_links) }}</span>{% endif %}</dt><dd>{% if t.display_hint %}<p>Display hint: <code>{{ t.display_hint }}</code></p>{% endif %}{% if t.enums %}<p>{% for k, v in t.enums.items() %}<code>{{ k }}({{ v }})</code> {% endfor %}</p>{% endif %}{% if t.description %}<pre class="desc">{{ t.description }}</pre>{% endif %}</dd>{% endfor %}</dl></section>{% endif %}
+
+{% if notifications or groups %}<div class="two">
+{% if notifications %}<section class="card"><h2>Traps / Notifications</h2><ul class="cols">{% for o in notifications %}<li><a href="#{{ o.name }}">{{ o.name }}</a> <code>{{ o.oid }}</code></li>{% endfor %}</ul></section>{% endif %}
+{% if groups %}<section class="card"><h2>Groups and compliance</h2><ul class="cols">{% for o in groups %}<li><a href="#{{ o.name }}">{{ o.name }}</a></li>{% endfor %}</ul></section>{% endif %}
+</div>{% endif %}
+
+{% if imported_by %}<section class="card"><h2>Used by</h2><ul class="cols">{% for i in imported_by %}<li><a href="{{ root }}{{ i.url }}">{{ i.name }}</a>{% if i.dir not in ("_root", m.dir) %} <small>({{ i.dir }})</small>{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+</article>
+{% endblock %}

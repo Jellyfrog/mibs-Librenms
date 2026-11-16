@@ -1,0 +1,72 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [librenms-mibs-updated]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: .cache/net-snmp
+          key: net-snmp-${{ hashFiles('scripts/install-net-snmp.sh') }}
+      # independent setup runs concurrently; the group waits for all of them before the next step
+      - parallel:
+          - name: Build net-snmp 5.10.rc1 (cached)
+            run: echo "$(scripts/install-net-snmp.sh)" >> "$GITHUB_PATH"
+          - uses: astral-sh/setup-uv@v10.3.3  # no floating major tag is published
+          - name: Fetch LibreNMS
+            id: librenms
+            run: echo "sha=$(scripts/fetch-librenms.sh .cache/librenms | tail -1)" >> "$GITHUB_OUTPUT"
+          - uses: actions/configure-pages@v6
+            id: pages
+      - name: Tests
+        run: uv run pytest -q
+      - uses: actions/cache@v6
+        with:
+          path: |
+            .cache/parsed
+            .cache/iana
+          # Python sources only: template/JS/CSS edits must not save a fresh copy of the ~400 MB parse cache
+          key: parsed-${{ steps.librenms.outputs.sha }}-${{ hashFiles('uv.lock', 'extra-mibs/**', 'src/mibsite/*.py') }}
+          restore-keys: parsed-
+      - name: Build site
+        # base URL follows the Pages settings: custom domain once configured, else the github.io project path
+        run: uv run mibsite build --librenms .cache/librenms --out site --base-url "${{ steps.pages.outputs.base_url }}"
+      - name: Size guard (GitHub Pages limit 1 GB)
+        run: |
+          size=$(du -sb site | cut -f1)
+          echo "site size: $size bytes"
+          test "$size" -lt 950000000
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

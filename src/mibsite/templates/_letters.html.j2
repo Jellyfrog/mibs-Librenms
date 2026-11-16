@@ -1,0 +1,9 @@
+{# Letter-grouped list: groups = [(letter, items)]; item(x) renders one <li>. #}
+{% macro letter_groups(groups, item, list_class="cols") %}
+<nav class="letters sticky" aria-label="Letters">{% for l, _ in groups %}<a href="#letter-{{ l }}">{{ l }}</a>{% endfor %}</nav>
+{% for l, items in groups %}
+<section class="card group"><h2 id="letter-{{ l }}">{{ l }}</h2>
+<ul class="{{ list_class }}">{% for x in items %}{{ item(x) }}{% endfor %}</ul>
+</section>
+{% endfor %}
+{% endmacro %}

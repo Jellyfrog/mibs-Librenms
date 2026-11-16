@@ -1,0 +1,9 @@
+{% extends "base.html.j2" %}
+{% from "_letters.html.j2" import letter_groups %}
+{% block title %}All MIBs A–Z | LibreNMS MIB Browser{% endblock %}
+{% block main %}
+<h1>All MIBs</h1>
+<p class="muted">All MIBs, in order of the first letter.</p>
+{% macro mib_item(m) %}<li><a href="{{ root }}{{ m.url }}">{{ m.name }}</a>{% if m.dir != "_root" %} <small>{{ vendors.get(m.id, "") }}</small>{% endif %}</li>{% endmacro %}
+{{ letter_groups(groups, mib_item) }}
+{% endblock %}

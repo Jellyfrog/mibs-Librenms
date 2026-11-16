@@ -1,0 +1,23 @@
+BROKEN-IMPORT-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    OBJECT-TYPE, Integer32, enterprises FROM SNMPv2-SMI
+    MissingType FROM NONEXISTENT-MIB;
+
+acmeRoot OBJECT IDENTIFIER ::= { enterprises 99998 }
+
+acmeTemp OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION "Temperature."
+    ::= { acmeRoot 1 }
+
+acmeThing OBJECT-TYPE
+    SYNTAX MissingType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION "Thing."
+    ::= { acmeRoot 2 }
+
+END

@@ -1,0 +1,26 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<section class="hero">
+  <h1>All SNMP MIBs in LibreNMS</h1>
+  <p>See the OID tree, object types and descriptions of each MIB. See example values from LibreNMS test devices. Find a MIB or an object by its name or by its OID.</p>
+  <form action="{{ root }}/search/" role="search" class="big live"><label class="sr" for="bq">Find MIBs and OIDs</label><input id="bq" name="q" type="search" autocomplete="off" autofocus placeholder="ifInOctets, IF-MIB or 1.3.6.1.2.1.2.2.1.10" data-live><button class="primary">Find</button></form>
+  <p class="examples">Examples: <a href="{{ root }}/search/?q=ifInOctets">ifInOctets</a> · <a href="{{ root }}/search/?q=1.3.6.1.2.1.2.2.1.10.5">1.3.6.1.2.1.2.2.1.10.5</a> · <a href="{{ root }}/search/?q=IF-MIB">IF-MIB</a></p>
+</section>
+<section class="statcards">
+  <div class="card"><b>{{ "{:,}".format(stats.modules) }}</b><span>MIBs</span></div>
+  <div class="card"><b>{{ "{:,}".format(stats.objects) }}</b><span>Objects with an OID</span></div>
+  <div class="card"><b>{{ "{:,}".format(stats.examples) }}</b><span>MIBs with example values</span></div>
+</section>
+<section class="two">
+  <div class="card">
+    <h2>MIBs from A to Z</h2>
+    <p class="muted">All MIBs, in order of the first letter.</p>
+    <nav class="letters" aria-label="Letters">{% for l in letters %}<a href="{{ root }}/mibs/#letter-{{ l }}">{{ l }}</a>{% endfor %}</nav>
+  </div>
+  <div class="card">
+    <h2>MIBs by vendor</h2>
+    <p class="muted">The IANA enterprise number of a MIB shows its vendor.</p>
+    <div class="pills">{% for v in top_vendors %}<a href="{{ root }}/vendors/{{ v.slug }}/">{{ v.name }}</a>{% endfor %}<a class="more" href="{{ root }}/vendors/">See all vendors →</a></div>
+  </div>
+</section>
+{% endblock %}

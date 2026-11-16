@@ -1,0 +1,9 @@
+{% extends "base.html.j2" %}
+{% block title %}Statistics | LibreNMS MIB Browser{% endblock %}
+{% block main %}
+<h1>Statistics</h1>
+<section class="card"><table class="stats"><tr><th>MIBs</th><td>{{ stats.modules }}</td></tr><tr><th>Objects</th><td>{{ stats.objects }}</td></tr><tr><th>Vendors</th><td>{{ stats.vendors }}</td></tr><tr><th>MIBs with example values</th><td>{{ stats.examples }}</td></tr>
+{% for t, n in stats.tiers.items() %}<tr><th>{{ TIER_LABEL[t] }}</th><td>{{ n }}</td></tr>{% endfor %}</table></section>
+<h2>MIBs that the parsers did not read completely ({{ problem|length }})</h2>
+<section class="card"><ul>{% for m in problem %}<li><a href="{{ root }}{{ m.url }}">{{ m.label }}</a> <small>{{ TIER_LABEL[m.tier] }}{% if m.errors %} · <code>{{ m.errors[0][:160] }}</code>{% endif %}</small></li>{% endfor %}</ul></section>
+{% endblock %}

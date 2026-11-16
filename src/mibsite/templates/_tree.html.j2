@@ -1,0 +1,26 @@
+{# t.ex: object name -> example values (when the MIB has any, rows get an Example column showing the first);
+   t.hints: object name -> Type tooltip (allowed values); t.snmprec: URL prefix of the snmprec files.
+   Tree-table: one <tr class="r"> per object in pre-order (data-d = depth). A <tr class="dr"> detail row follows
+   only when the object has details. site.js adds the toggle buttons and the collapsing; without JS every row
+   shows. Markup is kept terse on purpose: these pages hold ~1M rows in total and Pages caps the site at 1 GB. #}
+{% macro node(n, t, d=0) -%}
+{% set o = n.obj %}{% set ex = t.ex %}{% set has_ex = o.name in ex -%}
+<tr class="r{% if n.children %} br{% endif %}" id="{{ o.name }}" data-d="{{ d }}"><td class="tn"><i class="k k-{{ o.kind }}">{{ KIND_ABBR.get(o.kind, "N") }}</i><a href="#{{ o.name }}">{{ o.name }}</a>{% if o.defined_twice %} <span class="twice" title="This MIB defines {{ o.name }} more than once, with different OIDs">defined twice</span>{% endif %}</td><td class="o">{{ o.oid }}</td><td class="syn"{% if o.name in t.hints %} title="{{ t.hints[o.name] }}"{% endif %}>{{ (o.syntax or "")|type_link(t.links) }}</td><td>{% if o.access %}<span class="acc">{{ ACCESS_ABBR.get(o.access, o.access) }}</span>{% endif %}</td><td>{% if o.status and o.status != "current" %}<span class="st">{{ o.status }}</span>{% endif %}</td>
+{%- if ex %}<td class="exv">{% if has_ex %}{% set e = ex[o.name][0] %}<code title="{{ e.t }} · instance .{{ e.i }} · {{ e.f }}">{{ e.v|enum_label(o.enums)|truncate(48, True, "…", 0) }}</code>{% endif %}</td>{% endif %}</tr>
+{%- if o.description or o.units or o.indexes or o.augments or o.enums or o.objects or has_ex -%}
+<tr class="dr" hidden><td colspan="{{ 6 if ex else 5 }}"><div class="det"><p class="kl">{{ o.kind }}{% if o.syntax %} · {{ o.syntax }}{% endif %}{% if o.access %} · {{ o.access }}{% endif %}{% if o.status %} · {{ o.status }}{% endif %}</p>
+{%- if o.description %}<pre class="desc">{{ o.description }}</pre>{% endif -%}
+{%- if o.units or o.indexes or o.augments or o.enums or o.objects %}<dl>
+{%- if o.units %}<dt>Units</dt><dd>{{ o.units }}</dd>{% endif -%}
+{%- if o.indexes %}<dt>Index</dt><dd>{% for i in o.indexes %}<a href="#{{ i }}">{{ i }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif -%}
+{%- if o.augments %}<dt>Augments</dt><dd><a href="#{{ o.augments }}">{{ o.augments }}</a></dd>{% endif -%}
+{%- if o.enums %}<dt>Values</dt><dd>{% for k, v in o.enums.items() %}<code>{{ k }}({{ v }})</code> {% endfor %}</dd>{% endif -%}
+{%- if o.objects %}<dt>Objects</dt><dd>{% for i in o.objects %}<a href="#{{ i }}">{{ i }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif -%}
+</dl>{% endif -%}
+{%- if has_ex %}<div class="ex"><p class="exh">Example values from LibreNMS test devices</p><table><thead><tr><th>Value</th><th>Type</th><th>Instance</th><th>Device</th></tr></thead><tbody>
+{%- for e in ex[o.name] %}<tr><td><code>{{ e.v|enum_label(o.enums) }}</code></td><td>{{ e.t }}</td><td><code>.{{ e.i }}</code></td><td><a href="{{ t.snmprec }}{{ e.f|urlencode }}.snmprec" rel="nofollow">{{ e.f }}</a></td></tr>{% endfor -%}
+</tbody></table></div>{% endif -%}
+</div></td></tr>
+{%- endif -%}
+{%- for c in n.children %}{{ node(c, t, d + 1) }}{% endfor -%}
+{%- endmacro %}

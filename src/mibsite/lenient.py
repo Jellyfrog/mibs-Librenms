@@ -66,8 +66,8 @@ def add_missing_standard_imports(text: str) -> str:
     imports = parse_imports(clean)
     v2 = bool(set(STANDARD) & set(imports)) or _uses(clean, "MODULE-IDENTITY")
     table = STANDARD if v2 else STANDARD_V1
-    if not v2 and not _uses(clean, "OBJECT-TYPE"):
-        return text
+    if not v2 and not _uses(clean, "OBJECT-TYPE") and not _TYPE_DEF_RE.search(clean):
+        return text  # SMIv1 modules with neither objects nor types (Counter32 ::= Counter) need nothing
     blanked = _STRING_RE.sub(lambda m: '"' + " " * (len(m.group()) - 2) + '"', clean)
     fixes = [m for m in _TYPE_FIX_RE.finditer(blanked) if v2 or m.group(1) not in ("Counter", "Gauge")]
     if fixes:

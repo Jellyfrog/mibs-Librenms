@@ -29,6 +29,12 @@ def test_leaves_smiv1_and_complete_modules_alone():
     assert add_missing_standard_imports(ok) == ok
 
 
+def test_smiv1_type_only_module_gets_its_base_types_imported():
+    # SNMPv2-SMI-v1: no IMPORTS and no OBJECT-TYPE, just Counter32 ::= Counter
+    t = "SNMPv2-SMI-v1 DEFINITIONS ::= BEGIN\nCounter32 ::= Counter\nGauge32 ::= Gauge\nEND\n"
+    assert parse_imports(add_missing_standard_imports(t)) == {"RFC1155-SMI": ["Counter", "Gauge"]}
+
+
 def test_module_without_imports_clause():
     t = HEAD + "m MODULE-IDENTITY LAST-UPDATED \"x\" ::= { enterprises 1 }\nEND\n"
     imports = parse_imports(add_missing_standard_imports(t))

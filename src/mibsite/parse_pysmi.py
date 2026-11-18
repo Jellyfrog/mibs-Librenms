@@ -51,8 +51,14 @@ class CachingParser:
         return _TREE_CACHE[key]
 
 
+# pysmi's own limit is 10 MB; 20 MB lets alaxala/AX-SMC-MIB (12 MB, ~20 s) through but keeps
+# metaswitch/METASWITCH-MIB (46 MB, ~12 min and 1.2 GB) on net-snmp
+MAX_MIB_BYTES = 20_000_000
+
+
 class AliasFileReader(FileReader):
     """FileReader (non-recursive) that rewrites aliased `FROM` module names in every file it serves."""
+    maxMibSize = MAX_MIB_BYTES
 
     def __init__(self, path: Path, available: set[str], notes: dict[str, list[str]]):
         super().__init__(str(path), recursive=False)

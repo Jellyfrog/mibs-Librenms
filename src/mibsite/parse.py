@@ -14,12 +14,12 @@ from .asn1text import parse_imports, read_text, split_modules
 from .discover import MibFile, all_dirs, search_dirs
 from .model import Module
 from .parse_netsnmp import parse_with_netsnmp
-from .parse_pysmi import BASE_MIBS, compile_pysmi, normalize_pysmi
+from .parse_pysmi import BASE_MIBS, MAX_MIB_BYTES, compile_pysmi, normalize_pysmi
 from .parse_regex import parse_with_regex
 from .progress import Progress
 
-# pysmi refuses source files of 10 MB or more (reader.maxMibSize); those go straight to net-snmp.
-PYSMI_MAX_BYTES = 10_000_000
+# files this large go straight to net-snmp (the reader's maxMibSize)
+PYSMI_MAX_BYTES = MAX_MIB_BYTES
 
 
 def parse_file(mf: MibFile, dirs: list[Path], available: set[str]) -> list[Module]:
@@ -78,6 +78,8 @@ def cache_keys(files: list[MibFile], available: set[str]) -> dict[tuple[str, str
         data = f.path.read_bytes()
         h = hashlib.sha256(f"{PARSER_VERSION}\0{tool}\0{f.dir}\0{f.rel}\0".encode())
         h.update(hashlib.sha256(data).digest())
+        if len(data) >= 10_000_000:  # pysmi's default limit: a new limit re-parses only these few large files
+            h.update(f"pysmi limit {PYSMI_MAX_BYTES}\0".encode())
         if f.modules:
             for name in sorted(parse_imports(read_text(f.path))):
                 h.update(f"{name}={resolve_module(name, available) in available}\0".encode())

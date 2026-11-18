@@ -8,7 +8,7 @@
   {"@type": "ListItem", "position": 2, "name": vendor, "item": cfg.base_url ~ "/vendors/" ~ vendor_slug ~ "/"},
   {"@type": "ListItem", "position": 3, "name": m.name, "item": cfg.base_url ~ path}]}|tojson }}</script>
 <script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "TechArticle", "headline": m.name ~ " SNMP MIB",
-  "description": description, "url": cfg.base_url ~ path, "dateModified": cfg.build_date,
+  "description": description, "url": cfg.base_url ~ path,
   "about": (m.identity or {}).get("organization") or vendor}|tojson }}</script>
 {% endblock %}
 {% block main %}

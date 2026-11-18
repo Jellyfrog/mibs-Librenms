@@ -48,8 +48,11 @@ jobs:
           key: parsed-${{ steps.librenms.outputs.sha }}-${{ hashFiles('uv.lock', 'extra-mibs/**', 'src/mibsite/*.py') }}
           restore-keys: parsed-
       - name: Build site
-        # base URL follows the Pages settings: custom domain once configured, else the github.io project path
-        run: uv run mibsite build --librenms .cache/librenms --out site --base-url "${{ steps.pages.outputs.base_url }}"
+        # base URL follows the Pages settings: custom domain once configured, else the github.io project path.
+        # Pages reports http:// for the custom domain (HTTPS is Cloudflare's), so links and the sitemap force https
+        env:
+          BASE_URL: ${{ steps.pages.outputs.base_url }}
+        run: uv run mibsite build --librenms .cache/librenms --out site --base-url "https://${BASE_URL#*://}"
       - name: Size guard (GitHub Pages limit 1 GB)
         run: |
           size=$(du -sb site | cut -f1)

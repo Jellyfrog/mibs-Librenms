@@ -316,7 +316,7 @@ def render_site(out: Path, modules: list[Module], table: SymbolTable, vendors: d
     if not site_root(cfg):  # a custom domain serves from "/"; project pages need no CNAME file
         (out / "CNAME").write_text(host + "\n")
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {cfg.base_url}/sitemap.xml\n")
-    urls = "".join(f"<url><loc>{escape(cfg.base_url + p)}</loc><lastmod>{cfg.build_date}</lastmod></url>" for p in pages)
+    urls = "".join(f"<url><loc>{escape(cfg.base_url + p)}</loc></url>" for p in pages)
     (out / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>\n')

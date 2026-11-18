@@ -17,6 +17,7 @@ from .search_index import write_search_index
 from .progress import phase
 from .snmprec import collect_examples
 from .symbols import SymbolTable
+from .usage import collect_usage
 from .vendors import classify, load_enterprises
 
 
@@ -83,10 +84,13 @@ def build(librenms: Path, out: Path, base_url: str, jobs: int, only: str | None,
         snmprec_dir = librenms / "tests" / "snmpsim"
         examples = collect_examples(snmprec_dir, table) if snmprec_dir.is_dir() else {}
         print(f"  {len(examples):,} MIBs with examples")
+    with phase("Collecting LibreNMS usage"):
+        usage = collect_usage(librenms, modules)
+        print(f"  {len(usage.modules):,} MIBs used by LibreNMS")
     cfg = SiteConfig(base_url.rstrip("/"), _sha(librenms), dt.date.today().isoformat())
     safe_clean(out)
     with phase("Rendering pages"):
-        render_site(out, modules, table, vendors, examples, cfg, jobs)
+        render_site(out, modules, table, vendors, examples, cfg, jobs, usage)
     with phase("Writing search index"):
         write_search_index(out / "data" / "search", modules, vendors)
     stats = {"modules": len(modules), "objects": sum(len(m.objects) for m in modules),

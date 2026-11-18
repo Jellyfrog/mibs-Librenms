@@ -1,4 +1,5 @@
 from mibsite.model import Module, Obj
+from mibsite.usage import Usage
 from conftest import canon
 from mibsite.render import SiteConfig, render_site
 from mibsite.symbols import SymbolTable
@@ -18,7 +19,12 @@ def test_render_site(tmp_path):
     vendors = {"_root/GOOD-MIB": "Example", "_root/SNMPv2-SMI": "Standards (IETF)", "acme/NOT-A-MIB": "Acme"}
     examples = {"_root/GOOD-MIB": {"goodName": [{"v": "w", "t": "OCTET STRING", "i": "0", "f": "acme"}]}}
     cfg = SiteConfig("https://mibs.example.org", "abc1234def", "2026-11-14")
-    pages = render_site(tmp_path, mods, table, vendors, examples, cfg, jobs=1)
+    pages = render_site(tmp_path, mods, table, vendors, examples, cfg, jobs=1,
+                        usage=Usage(objects={"_root/GOOD-MIB": {"goodName"}}, by_ref={"_root/GOOD-MIB"}))
+    stats_page = canon((tmp_path / "stats/index.html").read_text())
+    assert "<th>MIBs LibreNMS uses<td>1" in stats_page.replace("</th>", "")
+    assert "1 of 1" in stats_page  # the referenced MIB has example values
+    assert 'href="/mib/SNMPv2-SMI/">SNMPv2-SMI</a><td>1 MIBs' in stats_page.replace("</td>", "")  # imported by GOOD-MIB
 
     page = canon((tmp_path / "mib/GOOD-MIB/index.html").read_text())
     assert "<title>GOOD-MIB" in page

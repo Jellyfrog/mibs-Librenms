@@ -4,6 +4,24 @@
 <h1>Statistics</h1>
 <section class="card"><table class="stats"><tr><th>MIBs</th><td>{{ stats.modules }}</td></tr><tr><th>Objects</th><td>{{ stats.objects }}</td></tr><tr><th>Vendors</th><td>{{ stats.vendors }}</td></tr><tr><th>MIBs with example values</th><td>{{ stats.examples }}</td></tr>
 {% for t, n in stats.tiers.items() %}<tr><th>{{ TIER_LABEL[t] }}</th><td>{{ n }}</td></tr>{% endfor %}</table></section>
+<h2>Usage</h2>
+<section class="card"><table class="stats">
+<tr><th>MIBs LibreNMS uses</th><td>{{ usage.used_mibs }}</td></tr>
+<tr><th>… by <code>MIB::object</code></th><td>{{ usage.by_ref }}</td></tr>
+<tr><th>… by MIB name</th><td>{{ usage.by_name }}</td></tr>
+<tr><th>… by numeric OID</th><td>{{ usage.by_oid }}</td></tr>
+<tr><th>… by object name only</th><td>{{ usage.by_object }}</td></tr>
+<tr><th>Objects LibreNMS uses</th><td>{{ usage.used_objects }}</td></tr>
+<tr><th>Used MIBs with example values</th><td>{{ usage.used_with_examples }} of {{ usage.used_mibs }}</td></tr>
+<tr><th>Objects with example values</th><td>{{ usage.example_objects }} (in {{ usage.example_mibs }} MIBs)</td></tr>
+</table>
+<p><small>Found in LibreNMS's OS definitions and PHP code as <code>MIB::object</code>, as a MIB name, as a numeric OID (matched to the object it belongs to), or as a bare object name that only one MIB defines. A MIB can be found in several ways, so these lines add up to more than the total. Example values come from LibreNMS's snmpsim test recordings.</small></p></section>
+<h2>Most used by LibreNMS</h2>
+<section class="card"><table class="stats"><tr><th>MIB</th><th>Objects used</th></tr>
+{% for m, n in usage.top_used %}<tr><td><a href="{{ root }}{{ m.url }}">{{ m.label }}</a></td><td>{{ n }}</td></tr>{% endfor %}</table></section>
+<h2>Most imported by other MIBs</h2>
+<section class="card"><table class="stats"><tr><th>MIB</th><th>Imported by</th></tr>
+{% for m, n in usage.top_imported %}<tr><td><a href="{{ root }}{{ m.url }}">{{ m.label }}</a></td><td>{{ n }} MIBs</td></tr>{% endfor %}</table></section>
 <h2>MIBs that the parsers did not read completely ({{ problem|length }})</h2>
 <section class="card"><ul>{% for m in problem %}<li><a href="{{ root }}{{ m.url }}">{{ m.label }}</a> <small>{{ TIER_LABEL[m.tier] }}{% if m.errors %} · <code>{{ m.errors[0][:160] }}</code>{% endif %}</small></li>{% endfor %}</ul></section>
 {% endblock %}

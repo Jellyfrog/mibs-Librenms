@@ -33,7 +33,7 @@ def parse_file(mf: MibFile, dirs: list[Path], available: set[str]) -> list[Modul
     for name, segment in split_modules(text):
         errors: list[str] = []
         if too_big_for_pysmi:
-            errors.append(f"pysmi skipped: file is {mf.path.stat().st_size // 1_000_000} MB (pysmi limit 10 MB)")
+            errors.append(f"pysmi skipped: file is {mf.path.stat().st_size // 1_000_000} MB (pysmi limit {PYSMI_MAX_BYTES // 1_000_000} MB)")
         elif single and mf.path.name == name and name not in BASE_MIBS:
             js, messages = compile_pysmi(name, dirs, available)
             if js is not None:

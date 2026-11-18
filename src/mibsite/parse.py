@@ -65,24 +65,30 @@ def _snmptranslate_version() -> str:
 
 
 def cache_keys(files: list[MibFile], available: set[str]) -> dict[tuple[str, str], str]:
-    """Per-file cache key = parser version + path + the file's own bytes + which of its imports exist.
+    """Per-file cache key = parser version + path + the file's own bytes + the bytes of the MIBs it imports.
 
     Like `git diff` on the MIB tree, but needs no stored commit or git history: only files whose bytes
-    changed are re-parsed. Dependents are not invalidated on purpose: SMI forbids re-assigning an existing
-    OID, so editing a MIB cannot change what its importers resolve. The one case that can is an import
-    that was missing and now exists (or vice versa); that flips the "exists" bit and re-parses the importer.
+    changed are re-parsed, plus the files that import them directly, since fixing a MIB can turn its
+    importers' "pysmi failed" into a full parse. An import that was missing and now exists (or vice versa)
+    changes the key too.
     """
     keys = {}
     tool = _snmptranslate_version()
+    digest = {(f.dir, f.rel): hashlib.sha256(f.path.read_bytes()).digest() for f in files}
+    by_module: dict[str, list[bytes]] = {}  # module name -> digests of every file defining it
     for f in files:
-        data = f.path.read_bytes()
+        for name in f.modules:
+            by_module.setdefault(name, []).append(digest[(f.dir, f.rel)])
+    for f in files:
         h = hashlib.sha256(f"{PARSER_VERSION}\0{tool}\0{f.dir}\0{f.rel}\0".encode())
-        h.update(hashlib.sha256(data).digest())
-        if len(data) >= 10_000_000:  # pysmi's default limit: a new limit re-parses only these few large files
+        h.update(digest[(f.dir, f.rel)])
+        if f.path.stat().st_size >= 10_000_000:  # pysmi's default limit: a new limit re-parses only these
             h.update(f"pysmi limit {PYSMI_MAX_BYTES}\0".encode())
         if f.modules:
             for name in sorted(parse_imports(read_text(f.path))):
-                h.update(f"{name}={resolve_module(name, available) in available}\0".encode())
+                h.update(f"{name}\0".encode())
+                for d in sorted(by_module.get(resolve_module(name, available), ())):
+                    h.update(d)
         keys[(f.dir, f.rel)] = h.hexdigest()
     return keys
 

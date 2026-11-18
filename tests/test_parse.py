@@ -70,11 +70,12 @@ def test_file_too_big_for_pysmi_goes_to_netsnmp(fixtures_dir, monkeypatch):
     assert m.tier == "netsnmp" and m.errors[0].startswith("pysmi skipped: file is")
 
 
-def test_cache_keys_only_change_for_edited_file(tmp_path):
+def test_cache_keys_change_for_edited_file_and_its_importers(tmp_path):
     from mibsite.parse import cache_keys
     (tmp_path / "BASE-MIB").write_text("BASE-MIB DEFINITIONS ::= BEGIN\nb OBJECT IDENTIFIER ::= { enterprises 1 }\nEND\n")
     (tmp_path / "USER-MIB").write_text("USER-MIB DEFINITIONS ::= BEGIN\nIMPORTS b FROM BASE-MIB x FROM LATER-MIB;\n"
                                        "u OBJECT IDENTIFIER ::= { b 1 }\nEND\n")
+    (tmp_path / "OTHER-MIB").write_text("OTHER-MIB DEFINITIONS ::= BEGIN\no OBJECT IDENTIFIER ::= { enterprises 3 }\nEND\n")
 
     def keys():
         files = discover(tmp_path, None)
@@ -83,7 +84,9 @@ def test_cache_keys_only_change_for_edited_file(tmp_path):
     before = keys()
     (tmp_path / "BASE-MIB").write_text("BASE-MIB DEFINITIONS ::= BEGIN\nb OBJECT IDENTIFIER ::= { enterprises 1 }\n-- edit\nEND\n")
     after = keys()
-    assert after["BASE-MIB"] != before["BASE-MIB"] and after["USER-MIB"] == before["USER-MIB"]
+    # fixing a MIB can make its importers parse, so they are re-parsed too; unrelated files are not
+    assert after["BASE-MIB"] != before["BASE-MIB"] and after["USER-MIB"] != before["USER-MIB"]
+    assert after["OTHER-MIB"] == before["OTHER-MIB"]
     # a previously missing import appearing re-parses the importer
     (tmp_path / "LATER-MIB").write_text("LATER-MIB DEFINITIONS ::= BEGIN\nx OBJECT IDENTIFIER ::= { enterprises 2 }\nEND\n")
     final = keys()
